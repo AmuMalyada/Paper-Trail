@@ -39,6 +39,30 @@
     {
       "parameters": {
         "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS papers (\n  paper_id TEXT PRIMARY KEY,\n  topic TEXT,\n  title TEXT,\n  authors TEXT,\n  year INTEGER,\n  venue TEXT,\n  citation_count INTEGER,\n  external_ids TEXT,\n  publication_types TEXT,\n  claim TEXT,\n  stance TEXT,\n  confidence NUMERIC,\n  methodology_type TEXT,\n  methodology_score NUMERIC,\n  sample_size INTEGER,\n  key_limitation TEXT,\n  authors_normalized TEXT,\n  created_at TIMESTAMPTZ DEFAULT NOW()\n);",
+        "options": {}
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Create Papers Table",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "credentials": {
+        "postgres": {
+          "name": "Paper Trail PostgreSQL"
+        }
+      },
+      "position": [
+        448,
+        64
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
         "query": "DO $$\nBEGIN\n  IF EXISTS (\n    SELECT 1\n    FROM information_schema.tables\n    WHERE table_schema = 'public' AND table_name = 'pipeline_runs'\n  ) THEN\n    ALTER TABLE public.pipeline_runs\n      ADD COLUMN IF NOT EXISTS duration_ms BIGINT;\n  END IF;\nEND $$;",
         "options": {}
       },
@@ -52,7 +76,7 @@
         }
       },
       "position": [
-        448,
+        672,
         64
       ],
       "retryOnFail": true,
@@ -97,6 +121,17 @@
       ]
     },
     "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Create Papers Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Papers Table": {
       "main": [
         [
           {

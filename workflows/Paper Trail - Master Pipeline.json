@@ -20,12 +20,6 @@
           "value": "ptDbSetupx9Lm2Q",
           "cachedResultName": "Paper Trail - Database Setup"
         },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": null,
-          "schema": [],
-          "matchingColumns": []
-        },
         "mode": "once",
         "options": {}
       },

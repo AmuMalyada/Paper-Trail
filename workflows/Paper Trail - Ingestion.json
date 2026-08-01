@@ -73,11 +73,13 @@
       ]
     },
     {
-      "parameters": {},
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nif (items.length === 0) {\n  return [{\n    json: {\n      __summary: true,\n      papers_fetched: 0,\n      papers_skipped: 0\n    }\n  }];\n}\n\nreturn items;"
+      },
       "id": "0a8c0291-c176-4f51-aab0-1653f873cc5d",
       "name": "Ingestion Complete",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         896,
         0
