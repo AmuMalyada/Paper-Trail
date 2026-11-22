@@ -1,0 +1,112 @@
+
+name: Rewrite Historical Commit Authors
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Preview first; push only after checking the preview"
+        required: true
+        type: choice
+        options:
+          - preview
+          - push
+        default: preview
+      confirmation:
+        description: "For push mode, enter REWRITE-PAPER-TRAIL-MAIN"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  rewrite:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout complete repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check push confirmation
+        if: inputs.mode == 'push'
+        shell: bash
+        run: |
+          if [ "${{ inputs.confirmation }}" != "REWRITE-PAPER-TRAIL-MAIN" ]; then
+            echo "Confirmation text did not match. Nothing was pushed."
+            exit 1
+          fi
+
+      - name: Install git-filter-repo
+        run: |
+          python -m pip install --user git-filter-repo
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Record original main commit
+        id: original
+        run: |
+          git fetch origin main
+          echo "sha=$(git rev-parse origin/main)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify working copy matches remote main
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ steps.original.outputs.sha }}" || {
+            echo "Checkout does not match the current main branch."
+            exit 1
+          }
+
+      - name: Rewrite historical identities
+        run: |
+          cat > author-mailmap.txt <<'EOF'
+          Amukta Malyada <309342361+AmuMalyada@users.noreply.github.com> Rajkalyanvbs <vbsrajkalyan@gmail.com>
+          EOF
+
+          git filter-repo --force --mailmap author-mailmap.txt
+
+      - name: Verify rewritten history
+        run: |
+          mkdir -p rewrite-report
+
+          git log main --format='%H | %an <%ae> | %cn <%ce> | %aI | %cI | %s' \
+            > rewrite-report/rewritten-history.txt
+
+          git log main --format='%an <%ae>' | sort | uniq -c \
+            > rewrite-report/author-summary.txt
+
+          git log main --format='%cn <%ce>' | sort | uniq -c \
+            > rewrite-report/committer-summary.txt
+
+          cat rewrite-report/author-summary.txt
+          cat rewrite-report/committer-summary.txt
+
+          if grep -iE 'Rajkalyanvbs|vbsrajkalyan@gmail.com' \
+            rewrite-report/rewritten-history.txt; then
+            echo "Old identity remains in the rewritten main history."
+            exit 1
+          fi
+
+          git bundle create rewrite-report/rewritten-preview.bundle --all
+          git bundle verify rewrite-report/rewritten-preview.bundle
+
+      - name: Upload rewritten preview
+        if: inputs.mode == 'preview'
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-trail-rewritten-preview
+          path: rewrite-report/
+          retention-days: 30
+
+      - name: Push rewritten main history
+        if: inputs.mode == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_OLD_SHA: ${{ steps.original.outputs.sha }}
+        run: |
+          git remote add rewritten-origin \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          git push \
+            --force-with-lease="refs/heads/main:${EXPECTED_OLD_SHA}" \
+            rewritten-origin HEAD:refs/heads/main
